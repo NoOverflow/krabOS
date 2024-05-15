@@ -6,7 +6,15 @@
 ; Print a string to the screen in TTY mode TODO: Use 0x10 AH 0x13H
 ;
 ; Inputs:
-;   si = pointer to string
+;   dl = character to print
+print_chr:
+    pusha
+    mov ah, 0x0E
+    mov al, dl
+    int 0x10
+    popa
+    ret
+
 print_string:
     pusha
     mov ah, 0x0E ; Enable BIOS TTY
