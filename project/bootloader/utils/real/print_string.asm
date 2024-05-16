@@ -7,6 +7,7 @@
 ;
 ; Inputs:
 ;   dl = character to print
+[bits 16]
 print_chr:
     pusha
     mov ah, 0x0E

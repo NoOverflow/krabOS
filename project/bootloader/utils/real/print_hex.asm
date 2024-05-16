@@ -8,6 +8,7 @@
 ; Inputs:
 ;  DX = Number to print
 ;
+[bits 16]
 _print_hex_digit:
     cmp cx, 0xA
     jge ._let_hex

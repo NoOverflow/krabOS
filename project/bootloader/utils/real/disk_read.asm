@@ -13,7 +13,7 @@
 ;  ES:BX = buffer to read to
 ;
 
-[BITS 16]
+[bits 16]
 ; Constants
 BIOS_DISK_OPS_INT EQU 0x13
 BIOS_DISK_OPS_INT_READ EQU 0x2
@@ -38,7 +38,6 @@ read_disk:
     call print_hex_nl
     popa
     mov ax, KRB_OK
-
 
     read_disk_end:
         ret

@@ -3,11 +3,9 @@
 ;
 ; This file is part of KrabbOS.
 ;
-; Setup the Global Descriptor Table
+; Global Descriptor Table
 ;
-;
-;
-;
+[bits 16]
 gdt_start:
     gdt_null: ; 8 bytes, never referenced by the processor, and should always contain no data.
         dd 0x0
