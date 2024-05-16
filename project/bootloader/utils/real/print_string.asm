@@ -31,8 +31,8 @@ print_string:
         ret
 
 print_string_nl:
-    pusha
     call print_string
+    pusha
     mov ah, 0x0E
     mov al, 0x0A
     int 0x10
