@@ -21,6 +21,7 @@ KRB_OK EQU 0x0
 KRB_ERROR EQU 0x1
 
 read_disk:
+    pusha
     push ax
 
     mov ah, BIOS_DISK_OPS_INT_READ
@@ -35,13 +36,16 @@ read_disk:
     call print_string
     mov dl, al
     call print_hex_nl
+    popa
     mov ax, KRB_OK
+
 
     read_disk_end:
         ret
 
     read_disk_error:
         add sp, 0x2 ; Remove the pushed al
+        popa
         mov al, KRB_ERROR
         jmp read_disk_end
 
@@ -54,8 +58,9 @@ read_disk:
         call print_chr
         mov dl, ah
         call print_hex_nl
+        popa
         mov al, KRB_ERROR
         jmp read_disk_end
 
-SECTOR_READ_SUCCESS_STR db "> Successfully read n sectors, n = ", 0
-SECTOR_READ_ERROR_STR db "> Error reading sector (expected:got) = ", 0
+SECTOR_READ_SUCCESS_STR db "Success. read sectors ", 0
+SECTOR_READ_ERROR_STR db "Read err (e:g) ", 0
