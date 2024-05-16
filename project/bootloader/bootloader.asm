@@ -55,9 +55,6 @@ main:
     call print_string_nl
 
     ; Load kernel from disk
-    mov si, LOADING_KERNEL_STR
-    call print_string_nl
-
     mov bx, KERNEL_LOAD_SEGMENT
     mov es, bx
     mov bx, KERNEL_LOAD_OFFSET
@@ -82,7 +79,6 @@ BOOT_DRIVE_INDEX db 0
 
 ; Strings
 HEADER_MESSAGE_STR db "> KrabbOS Bootloader (16 Bits mode)", 0
-LOADING_KERNEL_STR db "> Loading kernel...", 0
 LOADING_KERNEL_DISK_FAIL_STR db "> Error loading kernel from disk, error code: ", 0
 
 ; Boot sector signature
