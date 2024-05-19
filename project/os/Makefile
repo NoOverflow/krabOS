@@ -1,6 +1,8 @@
+KERNEL_SOURCE = $(shell find kernel/src -name "*.rs")
+
 all: build
 
-kernel:
+kernel: $(KERNEL_SOURCE)
 	cd kernel && cargo build --release
 
 kernel_hook: kernel
