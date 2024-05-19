@@ -14,7 +14,6 @@ jmp main
 %include "utils/real/print_string.asm"
 %include "utils/real/print_hex.asm"
 %include "utils/real/disk_read.asm"
-%include "utils/protected/print_string.asm"
 
 ; Boot loader entry point
 [bits 16]
@@ -36,10 +35,16 @@ main:
 
     mov dl, [BOOT_DRIVE_INDEX]  ; Store boot drive index
 
-    ; Clear screen
-    mov ah, 0x00
+    ; Set video mode
+    mov ah, 0x0
     mov al, BIOS_TEXT_MODE
     int 0x10
+
+    ; Disable cursor
+    mov ah, 0x1
+    mov ch, 0b0010_0000
+    int 0x10
+
 
     ; Load kernel
     mov bx, KERNEL_LOAD_SEGMENT
@@ -83,9 +88,6 @@ start_protected_mode:
     call main_protected_entry_point
 
 main_protected_entry_point:
-    mov ebx, MSG_PROTECTED_MODE_STR
-    call print_string_pm
-
     call KERNEL_LOAD_OFFSET
     jmp $
 
@@ -93,7 +95,6 @@ main_protected_entry_point:
 BOOT_DRIVE_INDEX db 0
 
 ; Constants
-MSG_PROTECTED_MODE_STR db "Loaded in 32 bits protected mode", 0
 LOADING_KERNEL_DISK_FAIL_STR db "Error loading kernel from disk, error code: ", 0
 BIOS_TEXT_MODE equ 0x3
 
