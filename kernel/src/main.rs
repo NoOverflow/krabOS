@@ -1,10 +1,15 @@
-#![no_std]
-#![no_main]
+#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(test), no_main)]
+
+pub mod libs;
 
 use core::arch::asm;
 
 use limine::BaseRevision;
+use limine::framebuffer::Framebuffer;
 use limine::request::{FramebufferRequest, RequestsEndMarker, RequestsStartMarker};
+
+use crate::libs::drivers;
 
 #[used]
 #[unsafe(link_section = ".requests")]
@@ -25,27 +30,25 @@ static _END_MARKER: RequestsEndMarker = RequestsEndMarker::new();
 #[unsafe(no_mangle)]
 unsafe extern "C" fn kmain() -> ! {
     assert!(BASE_REVISION.is_supported());
+    let framebuffer: Option<Framebuffer>;
 
     if let Some(framebuffer_response) = FRAMEBUFFER_REQUEST.get_response() {
-        if let Some(framebuffer) = framebuffer_response.framebuffers().next() {
-            let mut color: u32 = 0x000000;
-
-            for i in 0..framebuffer.width() * framebuffer.height() {
-                unsafe {
-                    framebuffer
-                        .addr()
-                        .cast::<u32>()
-                        .add(i as usize)
-                        .write(color | 0x000000FF);
-                };
-                color = color.wrapping_add(0x00010000);
-            }
+        if let Some(fb) = framebuffer_response.framebuffers().next() {
+            framebuffer = Some(fb);
+        } else {
+            panic!("No framebuffer found");
         }
+    } else {
+        panic!("Framebuffer request failed");
     }
+    let fb = framebuffer.unwrap();
+    let mut vga = drivers::vga::Vga::new(&fb);
 
+    vga.init();
     hcf();
 }
 
+#[cfg(not(test))]
 #[panic_handler]
 fn rust_panic(_info: &core::panic::PanicInfo) -> ! {
     hcf();

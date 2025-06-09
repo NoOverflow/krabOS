@@ -86,6 +86,10 @@ limine/limine:
 kernel:
 	$(MAKE) -C kernel
 
+.PHONY: kernel-test
+kernel-test:
+	$(MAKE) -C kernel test
+
 $(IMAGE_NAME).iso: limine/limine kernel
 	rm -rf iso_root
 	mkdir -p iso_root/boot

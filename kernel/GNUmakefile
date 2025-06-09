@@ -28,8 +28,12 @@ endif
 # Default target.
 .PHONY: all
 all:
-	RUSTFLAGS="-C relocation-model=static" cargo build --target $(RUST_TARGET) --profile $(RUST_PROFILE)
+	RUSTFLAGS="-C relocation-model=static" CARGO_ENV=build cargo build --target $(RUST_TARGET) --profile $(RUST_PROFILE)
 	cp target/$(RUST_TARGET)/$(RUST_PROFILE_SUBDIR)/kernel ./kernel
+
+.PHONY: test
+test:
+	CARGO_ENV=test cargo test
 
 # Remove object files and the final executable.
 .PHONY: clean
