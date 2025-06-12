@@ -4,6 +4,9 @@ use crate::libs::{drivers::logs::sinks::Sink, parsers::psf::PsfFont};
 
 static FONT_DATA: &[u8] = include_bytes!("../../../../../resources/fonts/zap-light16.psf");
 
+// This is a naive, non-optimized VGA text mode driver.
+// It is only intended to be used for displaying text when no memory management is available.
+// It doesn't support scaling yet, since the goal is to just hand over control to a better log sink when possible
 pub struct Vga<'a> {
     framebuffer: &'a Framebuffer<'a>,
     font: PsfFont,
@@ -11,8 +14,6 @@ pub struct Vga<'a> {
 }
 
 impl<'a> Vga<'a> {
-    pub fn init(&mut self) {}
-
     pub fn clear(framebuffer: &'a Framebuffer<'a>, color: u32) {
         for i in (framebuffer.width() * 50)..framebuffer.width() * framebuffer.height() {
             unsafe {
@@ -22,6 +23,40 @@ impl<'a> Vga<'a> {
                     .add(i as usize)
                     .write(color);
             };
+        }
+    }
+
+    pub fn scroll(&mut self) {
+        unsafe {
+            let fb_raw: *mut u32 = self.framebuffer.addr().cast::<u32>();
+            let fb_new_start: *mut u32 = self
+                .framebuffer
+                .addr()
+                .cast::<u32>()
+                .add(self.framebuffer.width() as usize * self.font.glyph_size.1 as usize);
+
+            core::ptr::copy(
+                fb_new_start,
+                fb_raw,
+                self.framebuffer.width() as usize
+                    * (self.framebuffer.height() as usize - self.font.glyph_size.1 as usize),
+            );
+            self.clear_line(self.cursor_pos.1 as usize);
+        };
+    }
+
+    pub fn clear_line(&mut self, line: usize) {
+        unsafe {
+            let fb_line: *mut u32 = self.framebuffer.addr().cast::<u32>().add(
+                self.framebuffer.width() as usize
+                    * (line as usize * self.font.glyph_size.1 as usize),
+            );
+
+            core::ptr::write_bytes(
+                fb_line,
+                0x0,
+                self.framebuffer.width() as usize * self.font.glyph_size.1 as usize,
+            );
         }
     }
 
@@ -43,8 +78,15 @@ impl<'a> Vga<'a> {
 impl<'a> Sink for Vga<'a> {
     fn putchar(&mut self, c: char) {
         if c == '\n' {
-            self.cursor_pos.0 = 0;
-            self.cursor_pos.1 += 1;
+            if self.cursor_pos.1 as u64 * self.font.glyph_size.1 as u64
+                >= (self.framebuffer.height() - (self.font.glyph_size.1 as u64))
+            {
+                self.scroll();
+                self.cursor_pos.0 = 0;
+            } else {
+                self.cursor_pos.0 = 0;
+                self.cursor_pos.1 += 1;
+            }
             return;
         }
 
@@ -79,9 +121,17 @@ impl<'a> Sink for Vga<'a> {
             }
         }
         self.cursor_pos.0 += 1;
+
         if self.cursor_pos.0 as u64 * self.font.glyph_size.0 as u64 >= self.framebuffer.width() {
             self.cursor_pos.0 = 0;
             self.cursor_pos.1 += 1;
+
+            if self.cursor_pos.1 as u64 * self.font.glyph_size.1 as u64
+                >= (self.framebuffer.height() - (self.font.glyph_size.1 as u64))
+            {
+                self.scroll();
+                self.cursor_pos.0 = 0;
+            }
         }
     }
 
