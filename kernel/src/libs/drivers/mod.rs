@@ -1,1 +1,3 @@
-pub mod vga;
+pub mod logs {
+    pub mod sinks;
+}

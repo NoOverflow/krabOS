@@ -10,6 +10,7 @@ use limine::framebuffer::Framebuffer;
 use limine::request::{FramebufferRequest, RequestsEndMarker, RequestsStartMarker};
 
 use crate::libs::drivers;
+use crate::libs::drivers::logs::sinks::Sink;
 
 #[used]
 #[unsafe(link_section = ".requests")]
@@ -42,9 +43,10 @@ unsafe extern "C" fn kmain() -> ! {
         panic!("Framebuffer request failed");
     }
     let fb = framebuffer.unwrap();
-    let mut vga = drivers::vga::Vga::new(&fb);
+    let mut vga = drivers::logs::sinks::vga::Vga::new(&fb);
 
     vga.init();
+    vga.putstr("[krabos] Kernel started successfully!\n");
     hcf();
 }
 
