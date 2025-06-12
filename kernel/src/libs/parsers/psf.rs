@@ -80,8 +80,6 @@ impl PsfFont {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Read;
-
     use crate::libs::parsers::psf::PsfFont;
 
     #[test]
