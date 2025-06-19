@@ -1,3 +1,2 @@
 pub mod drivers;
-pub mod parsers;
-pub mod utils;
+pub mod generic;

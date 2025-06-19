@@ -1,6 +1,6 @@
 use limine::framebuffer::Framebuffer;
 
-use crate::libs::{drivers::logs::sinks::Sink, parsers::psf::PsfFont};
+use crate::libs::{drivers::logs::sinks::Sink, generic::parsers::psf::PsfFont};
 
 static FONT_DATA: &[u8] = include_bytes!("../../../../../resources/fonts/zap-light16.psf");
 

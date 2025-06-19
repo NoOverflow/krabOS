@@ -9,13 +9,13 @@ use core::fmt::Write;
 use limine::BaseRevision;
 use limine::framebuffer::Framebuffer;
 use limine::request::{
-    BootloaderInfoRequest, FramebufferRequest, RequestsEndMarker, RequestsStartMarker,
-    StackSizeRequest,
+    BootloaderInfoRequest, DateAtBootRequest, FramebufferRequest, RequestsEndMarker,
+    RequestsStartMarker, StackSizeRequest,
 };
 use limine::response::BootloaderInfoResponse;
 
 use crate::libs::drivers;
-use crate::libs::utils::logger::Logger;
+use crate::libs::generic::logging::logger::Logger;
 
 #[used]
 #[unsafe(link_section = ".requests")]
@@ -32,6 +32,10 @@ static BOOTLOADERINFO_REQUEST: BootloaderInfoRequest = BootloaderInfoRequest::ne
 #[used]
 #[unsafe(link_section = ".requests")]
 static STACK_SIZE_REQUEST: StackSizeRequest = StackSizeRequest::new().with_size(0xF00000);
+
+#[used]
+#[unsafe(link_section = ".requests")]
+static DATE_AT_BOOT_REQUEST: DateAtBootRequest = DateAtBootRequest::new();
 
 /// Define the stand and end markers for Limine requests.
 #[used]
@@ -89,6 +93,17 @@ fn get_limine_bootloader_info(
     }
 }
 
+fn get_boot_time(logger: &mut Logger) {
+    match DATE_AT_BOOT_REQUEST.get_response() {
+        Some(response) => {
+            writeln!(logger, "[krabos] Booted at {:#?}", response.timestamp()).unwrap();
+        }
+        None => {
+            panic!("DateAtBoot request failed.")
+        }
+    }
+}
+
 #[unsafe(no_mangle)]
 unsafe extern "C" fn kmain() -> ! {
     assert!(BASE_REVISION.is_supported());
@@ -119,8 +134,6 @@ unsafe extern "C" fn kmain() -> ! {
     let mut bootloader_info_response: Option<&BootloaderInfoResponse> = None;
 
     get_limine_bootloader_info(&mut bootloader_info_response, &mut logger);
-    for i in 0..100 {
-        writeln!(logger, "[krabos] Test log line {}", i).unwrap();
-    }
+    get_boot_time(&mut logger);
     hcf();
 }

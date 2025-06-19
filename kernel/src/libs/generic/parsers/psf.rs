@@ -80,11 +80,11 @@ impl PsfFont {
 
 #[cfg(test)]
 mod tests {
-    use crate::libs::parsers::psf::PsfFont;
+    use crate::libs::generic::parsers::psf::PsfFont;
 
     #[test]
     fn test_parse_psf1() {
-        static FONT: &[u8] = include_bytes!("../../../resources/fonts/zap-light16.psf");
+        static FONT: &[u8] = include_bytes!("../../../../resources/fonts/zap-light16.psf");
 
         let result = PsfFont::parse(FONT);
 
