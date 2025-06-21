@@ -1,3 +1,4 @@
+#![feature(cfg_match)]
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(not(test), no_main)]
 
@@ -14,8 +15,8 @@ use limine::request::{
 };
 use limine::response::BootloaderInfoResponse;
 
-use crate::libs::drivers;
 use crate::libs::generic::logging::logger::Logger;
+use crate::libs::{arch, drivers};
 
 #[used]
 #[unsafe(link_section = ".requests")]
@@ -135,5 +136,7 @@ unsafe extern "C" fn kmain() -> ! {
 
     get_limine_bootloader_info(&mut bootloader_info_response, &mut logger);
     get_boot_time(&mut logger);
+
+    arch::init();
     hcf();
 }
