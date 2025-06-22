@@ -1,3 +1,4 @@
+use crate::libs::arch::x86_64::asm::load_gdt;
 use bitflags::bitflags;
 
 const CPL_RING_3: u8 = 0b11; // Usermode CPU privilege level
@@ -27,6 +28,12 @@ struct GdtSegmentDescriptor {
     pub base: u32,
     pub flags: GdtFlag,
     pub access: GdtAccessByte,
+}
+
+#[repr(C, packed)]
+pub struct GdtDescriptor {
+    pub size: u16,
+    pub gdt: *const u64,
 }
 
 impl Into<u64> for GdtSegmentDescriptor {
@@ -105,11 +112,20 @@ pub fn load() {
         .into(),
         // TODO: Add TSS
     ];
+    let gdtr = GdtDescriptor {
+        gdt: gdt.as_ptr(),
+        size: (gdt.len() * size_of::<u64>() - 1) as u16,
+    };
+
+    unsafe {
+        load_gdt(&gdtr);
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::libs::arch::x86_64::gdt::GdtAccessByte;
+    use crate::libs::arch::x86_64::gdt::GdtDescriptor;
     use crate::libs::arch::x86_64::gdt::GdtFlag;
     use crate::libs::arch::x86_64::gdt::GdtSegmentDescriptor;
 
@@ -131,5 +147,10 @@ mod tests {
         // base_low[0b0111_0100_0101_0001] limit_low[0b0101001001110111]
         // == 0xDFAA836274515277
         assert_eq!(result, 0xDFAA836274515277);
+    }
+
+    #[test]
+    fn test_struct_sizes() {
+        assert_eq!(size_of::<GdtDescriptor>() * 8, 80);
     }
 }

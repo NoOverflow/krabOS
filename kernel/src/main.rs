@@ -137,6 +137,8 @@ unsafe extern "C" fn kmain() -> ! {
     get_limine_bootloader_info(&mut bootloader_info_response, &mut logger);
     get_boot_time(&mut logger);
 
+    writeln!(logger, "Loading gdt...");
     arch::init();
+    writeln!(logger, "We survived :D");
     hcf();
 }
