@@ -1,8 +1,8 @@
 use crate::libs::arch::x86_64::asm::load_gdt;
 use bitflags::bitflags;
 
-const CPL_RING_3: u8 = 0b11; // Usermode CPU privilege level
-const CPL_RING_0: u8 = 0b00; // Kernel CPU privilege level
+pub const CPL_RING_3: u8 = 0b11; // Usermode CPU privilege level
+pub const CPL_RING_0: u8 = 0b00; // Kernel CPU privilege level
 
 bitflags! {
     struct GdtAccessByte: u8 {
@@ -23,6 +23,12 @@ bitflags! {
     }
 }
 
+pub struct SegmentSelector {
+    pub index: u16,
+    pub global_descriptor_table: bool, // 0 for GDT, 1 for LDT (TI field)
+    pub requested_privilege: u8,
+}
+
 struct GdtSegmentDescriptor {
     pub limit: u32,
     pub base: u32,
@@ -34,6 +40,18 @@ struct GdtSegmentDescriptor {
 pub struct GdtDescriptor {
     pub size: u16,
     pub gdt: *const u64,
+}
+
+impl Into<u16> for SegmentSelector {
+    fn into(self) -> u16 {
+        let mut ret: u16 = 0;
+
+        ret |= self.requested_privilege as u16;
+        ret |= (if self.global_descriptor_table { 1 } else { 0 } as u16) << 2;
+        ret |= self.index << 3;
+
+        ret
+    }
 }
 
 impl Into<u64> for GdtSegmentDescriptor {
@@ -52,8 +70,8 @@ impl Into<u64> for GdtSegmentDescriptor {
     }
 }
 
-pub fn load() {
-    let gdt: &[u64] = &[
+pub fn load(gdt: &'static mut [u64; 5]) {
+    *gdt = [
         // Null descriptor
         GdtSegmentDescriptor {
             base: 0,
@@ -130,7 +148,7 @@ mod tests {
     use crate::libs::arch::x86_64::gdt::GdtSegmentDescriptor;
 
     #[test]
-    fn test_serialize_gdtsegdesc() {
+    fn gdt_test_serialize_gdtsegdesc() {
         let segdesc = GdtSegmentDescriptor {
             limit: 0xA5277,
             base: 0xDF627451,
@@ -150,7 +168,7 @@ mod tests {
     }
 
     #[test]
-    fn test_struct_sizes() {
+    fn gdt_test_struct_sizes() {
         assert_eq!(size_of::<GdtDescriptor>() * 8, 80);
     }
 }
