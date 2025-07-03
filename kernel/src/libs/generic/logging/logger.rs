@@ -19,3 +19,20 @@ impl<'a> Write for Logger<'a> {
         Ok(())
     }
 }
+
+// TODO: Can a macro generate macros ?
+// macro_metavar_expr
+#[macro_export]
+macro_rules! info {
+    ($($args:tt)*) => {
+        unsafe {
+            match &mut KERNEL_CONTEXT.logger {
+                Some(logger) => {
+                    write!(logger, "[krabOS | Info] ").unwrap();
+                    writeln!(logger, $($args)*).unwrap()
+                },
+                None => panic!(),
+            }
+        }
+    };
+}

@@ -1,7 +1,10 @@
 #![feature(cfg_match)]
+#![feature(naked_functions)]
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(not(test), no_main)]
+#![allow(static_mut_refs)]
 
+pub mod context;
 pub mod libs;
 
 use core::arch::asm;
@@ -15,6 +18,7 @@ use limine::request::{
 };
 use limine::response::BootloaderInfoResponse;
 
+use crate::context::KernelContext;
 use crate::libs::generic::logging::logger::Logger;
 use crate::libs::{arch, drivers};
 
@@ -46,6 +50,12 @@ static _START_MARKER: RequestsStartMarker = RequestsStartMarker::new();
 #[unsafe(link_section = ".requests_end_marker")]
 static _END_MARKER: RequestsEndMarker = RequestsEndMarker::new();
 
+static mut KERNEL_CONTEXT: KernelContext<'static> = KernelContext {
+    framebuffer: None,
+    vga: None,
+    logger: None,
+};
+
 #[cfg(not(test))]
 #[panic_handler]
 fn rust_panic(_info: &core::panic::PanicInfo) -> ! {
@@ -72,20 +82,15 @@ fn get_limine_framebuffer(framebuffer: &mut Option<Framebuffer>) {
     }
 }
 
-fn get_limine_bootloader_info(
-    bootloader_info_response: &mut Option<&BootloaderInfoResponse>,
-    logger: &mut Logger,
-) {
+fn get_limine_bootloader_info(bootloader_info_response: &mut Option<&BootloaderInfoResponse>) {
     match BOOTLOADERINFO_REQUEST.get_response() {
         Some(response) => {
-            writeln!(
-                logger,
-                "[krabos] Bootloader info: {}, {} REV {}",
+            info!(
+                "Bootloader info: {}, {} REV {}",
                 response.name(),
                 response.version(),
                 response.revision()
-            )
-            .unwrap();
+            );
             *bootloader_info_response = Some(response)
         }
         None => {
@@ -94,10 +99,10 @@ fn get_limine_bootloader_info(
     }
 }
 
-fn get_boot_time(logger: &mut Logger) {
+fn get_boot_time() {
     match DATE_AT_BOOT_REQUEST.get_response() {
         Some(response) => {
-            writeln!(logger, "[krabos] Booted at {:#?}", response.timestamp()).unwrap();
+            info!("Booted at {:#?}", response.timestamp());
         }
         None => {
             panic!("DateAtBoot request failed.")
@@ -112,33 +117,39 @@ unsafe extern "C" fn kmain() -> ! {
 
     get_limine_framebuffer(&mut fb_request);
 
-    let framebuffer = fb_request.unwrap();
-    let mut vga = drivers::logs::sinks::vga::Vga::new(&framebuffer);
-    let mut logger = Logger::new(&mut vga);
+    if fb_request.is_none() {
+        hcf();
+    }
 
-    writeln!(logger, "[krabos] Kernel started successfully!").unwrap();
-    writeln!(
-        logger,
-        "[krabos] Limine Base Revision: {}",
+    unsafe {
+        // Fuck you for coding this, straight up.
+        KERNEL_CONTEXT.framebuffer = Some(fb_request.unwrap());
+        KERNEL_CONTEXT.vga = Some(drivers::logs::sinks::vga::Vga::new(
+            KERNEL_CONTEXT.framebuffer.as_ref().unwrap(),
+        ));
+        KERNEL_CONTEXT.logger = Some(Logger::new(KERNEL_CONTEXT.vga.as_mut().unwrap()));
+    };
+
+    info!("Kernel started successully !");
+    info!(
+        "Limine Base Revision: {}",
         BASE_REVISION.loaded_revision().unwrap_or(0)
-    )
-    .unwrap();
-    writeln!(
-        logger,
-        "[krabos] Framebuffer: {}x{} @ {}bpp",
-        framebuffer.width(),
-        framebuffer.height(),
-        framebuffer.bpp()
-    )
-    .unwrap();
+    );
+
+    if let Some(fb) = &KERNEL_CONTEXT.framebuffer {
+        info!(
+            "Framebuffer: {}x{} @ {}bpp",
+            fb.width(),
+            fb.height(),
+            fb.bpp()
+        );
+    }
 
     let mut bootloader_info_response: Option<&BootloaderInfoResponse> = None;
 
-    get_limine_bootloader_info(&mut bootloader_info_response, &mut logger);
-    get_boot_time(&mut logger);
+    get_limine_bootloader_info(&mut bootloader_info_response);
+    get_boot_time();
 
-    writeln!(logger, "Loading gdt...");
     arch::init();
-    writeln!(logger, "We survived :D");
     hcf();
 }
