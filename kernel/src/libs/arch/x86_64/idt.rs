@@ -8,14 +8,14 @@ pub enum IdtGateType {
     Trap = 0xF,
 }
 
-struct IdtGateDescriptorProperties {
-    gate_type: IdtGateType,
-    privilege_level: u8,
+pub struct IdtGateDescriptorProperties {
+    pub gate_type: IdtGateType,
+    pub privilege_level: u8,
 }
 
 #[repr(C, packed)]
 #[derive(Default)]
-struct IdtGateDescriptor {
+pub struct IdtGateDescriptor {
     pub ep_ll: u16,
     pub segment_selector: u16,
     pub ist_offset: u8,
