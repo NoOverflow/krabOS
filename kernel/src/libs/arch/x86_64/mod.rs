@@ -32,7 +32,7 @@ pub unsafe fn init() {
     let idtr_default: IdtGateDescriptor = IdtGateDescriptor::new(
         isr_handler as _,
         SegmentSelector {
-            global_descriptor_table: true,
+            local_descriptor_table: false,
             index: 1, // This will cause issues lmao
             requested_privilege: CPL_RING_0,
         },
@@ -47,7 +47,7 @@ pub unsafe fn init() {
         CPU_CONTEXT.idtr = Some(IdtDescriptor { size: (size_of::<IdtGateDescriptor>() * 256) as u16 - 1, idt_offset: (&[idtr_default; 256]) as *const Idt});
         // Unmask PIC
         asm!(
-            "mov al, 0x0",
+            "mov al, 0x1",
             "out 0x21, al",
             "out 0xa1, al",
         );

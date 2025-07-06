@@ -1,11 +1,11 @@
 use core::arch::naked_asm;
-use core::fmt::Write;
-
-use crate::{info, KERNEL_CONTEXT};
+use crate::libs::arch::x86_64::asm::outb;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn generic_handler() {
-    info!("WHAT THE FUCK IS UP BITCHES");
+    unsafe {
+        outb(0x20, 0x20);
+    }
 }
 
 // Note: There is no predefined macro to push all 15 general purpose registers (excluding RSP)
@@ -15,7 +15,7 @@ macro_rules! push_gpregs {
     () => {
         concat!(
             "sub rsp, 120;", // 15 * 8 bits
-            "mov [rsp+112], rax;;",
+            "mov [rsp+112], rax;",
             "mov [rsp+104], rbx;",
             "mov [rsp+96], rcx;",
             "mov [rsp+88], rdx;",
@@ -60,6 +60,5 @@ macro_rules! pop_gpregs {
 #[unsafe(naked)]
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn isr_handler() {
-    naked_asm!("cld", "iretq");
-    // naked_asm!(push_gpregs!(), "cld", "call {}", pop_gpregs!(), "iretq", sym generic_handler);
+    naked_asm!(push_gpregs!(), "cld", "call {}", pop_gpregs!(), "iretq", sym generic_handler);
 }

@@ -4,11 +4,12 @@
 - [x] Text-rendering on VGA
 - [x] Formatted printing function
 - [ ] Proper kernel panic handling
-- [ ] Load GDT
-- [ ] Load IDT
+- [X] Load GDT
+- [X] Load IDT
 - [ ] Load LDT
+- [ ] APIC implementation
 - [ ] Timers and interrupts enabling
-- [ ] Serial port 
+- [ ] Serial port
 - [ ] Page frame allocator
 - [ ] Page tables
 - [ ] Multi-threading
