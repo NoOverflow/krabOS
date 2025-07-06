@@ -71,7 +71,7 @@ pub fn load(idtr: &IdtDescriptor) {
         asm!(
             "cli",
             "lidt [{idtr}]",
-            idtr = in(reg) &idtr
+            idtr = in(reg) idtr
         );
     }
 }
@@ -80,13 +80,13 @@ pub fn load(idtr: &IdtDescriptor) {
 mod tests {
     use crate::libs::arch::x86_64::{
         gdt::{SegmentSelector, CPL_RING_3},
-        idt::{Idt, IdtDescriptor, IdtGateDescriptor, IdtGateDescriptorProperties, IdtGateType},
+        idt::{IdtDescriptor, IdtGateDescriptor, IdtGateDescriptorProperties, IdtGateType},
     };
 
     #[test]
     fn idt_test_serialize() {
         let segsel = SegmentSelector {
-            global_descriptor_table: true,
+            local_descriptor_table: false,
             index: 0x546,
             requested_privilege: CPL_RING_3,
         };
