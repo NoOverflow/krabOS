@@ -25,7 +25,7 @@ bitflags! {
 
 pub struct SegmentSelector {
     pub index: u16,
-    pub global_descriptor_table: bool, // 0 for GDT, 1 for LDT (TI field)
+    pub local_descriptor_table: bool, // 0 for GDT, 1 for LDT (TI field)
     pub requested_privilege: u8,
 }
 
@@ -47,7 +47,7 @@ impl Into<u16> for SegmentSelector {
         let mut ret: u16 = 0;
 
         ret |= self.requested_privilege as u16;
-        ret |= (if self.global_descriptor_table { 1 } else { 0 } as u16) << 2;
+        ret |= (if self.local_descriptor_table { 1 } else { 0 } as u16) << 2;
         ret |= self.index << 3;
 
         ret
