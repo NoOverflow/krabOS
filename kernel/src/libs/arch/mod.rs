@@ -1,4 +1,4 @@
-cfg_match! {
+cfg_select! {
     target_arch = "x86_64" => {
         pub mod x86_64;
 
@@ -10,5 +10,7 @@ cfg_match! {
 }
 
 pub fn init() {
-    internal::init();
+    unsafe {
+        internal::init();
+    }
 }

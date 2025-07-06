@@ -14,7 +14,7 @@ pub struct IdtGateDescriptorProperties {
 }
 
 #[repr(C, packed)]
-#[derive(Default)]
+#[derive(Default, Copy, Clone)]
 pub struct IdtGateDescriptor {
     pub ep_ll: u16,
     pub segment_selector: u16,
@@ -28,7 +28,7 @@ pub struct IdtGateDescriptor {
 pub type Idt = [IdtGateDescriptor; 256];
 
 #[repr(C, packed)]
-struct IdtDescriptor {
+pub struct IdtDescriptor {
     pub size: u16,
     pub idt_offset: *const Idt,
 }
@@ -65,12 +65,13 @@ impl IdtGateDescriptor {
     }
 }
 
-pub fn load(idtr: &Idt) {
+// TODO: Refactor
+pub fn load(idtr: &IdtDescriptor) {
     unsafe {
         asm!(
             "cli",
             "lidt [{idtr}]",
-            idtr = in(reg) idtr
+            idtr = in(reg) &idtr
         );
     }
 }
@@ -78,8 +79,8 @@ pub fn load(idtr: &Idt) {
 #[cfg(test)]
 mod tests {
     use crate::libs::arch::x86_64::{
-        gdt::{CPL_RING_3, SegmentSelector},
-        idt::{IdtGateDescriptor, IdtGateDescriptorProperties, IdtGateType},
+        gdt::{SegmentSelector, CPL_RING_3},
+        idt::{Idt, IdtDescriptor, IdtGateDescriptor, IdtGateDescriptorProperties, IdtGateType},
     };
 
     #[test]
@@ -102,5 +103,7 @@ mod tests {
         assert_eq!(hh, 0xF8D99A8B);
         assert_eq!(lh, 0x6664);
         assert_eq!(size_of::<IdtGateDescriptor>() * 8, 128);
+        assert_eq!(size_of::<IdtDescriptor>() * 8, 80);
+        assert_eq!(size_of::<IdtGateDescriptor>() * 256, 4096);
     }
 }

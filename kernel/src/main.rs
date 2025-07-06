@@ -1,5 +1,4 @@
-#![feature(cfg_match)]
-#![feature(naked_functions)]
+#![feature(cfg_select)]
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(not(test), no_main)]
 #![allow(static_mut_refs)]
@@ -13,8 +12,7 @@ use core::fmt::Write;
 use limine::BaseRevision;
 use limine::framebuffer::Framebuffer;
 use limine::request::{
-    BootloaderInfoRequest, DateAtBootRequest, FramebufferRequest, RequestsEndMarker,
-    RequestsStartMarker, StackSizeRequest,
+    BootloaderInfoRequest, DateAtBootRequest, FramebufferRequest, MpRequest, RequestsEndMarker, RequestsStartMarker, StackSizeRequest
 };
 use limine::response::BootloaderInfoResponse;
 
@@ -42,10 +40,14 @@ static STACK_SIZE_REQUEST: StackSizeRequest = StackSizeRequest::new().with_size(
 #[unsafe(link_section = ".requests")]
 static DATE_AT_BOOT_REQUEST: DateAtBootRequest = DateAtBootRequest::new();
 
-/// Define the stand and end markers for Limine requests.
+#[used]
+#[unsafe(link_section = ".requests")]
+static MP_REQUEST: MpRequest = MpRequest::new();
+
 #[used]
 #[unsafe(link_section = ".requests_start_marker")]
 static _START_MARKER: RequestsStartMarker = RequestsStartMarker::new();
+
 #[used]
 #[unsafe(link_section = ".requests_end_marker")]
 static _END_MARKER: RequestsEndMarker = RequestsEndMarker::new();
@@ -110,6 +112,14 @@ fn get_boot_time() {
     }
 }
 
+fn get_mp() {
+    if let Some(mp_response) = MP_REQUEST.get_response() {
+        info!("Physical processors count: {:#?}", mp_response.cpus().len());
+    } else {
+        panic!("MP request failed");
+    }
+}
+
 #[unsafe(no_mangle)]
 unsafe extern "C" fn kmain() -> ! {
     assert!(BASE_REVISION.is_supported());
@@ -135,7 +145,7 @@ unsafe extern "C" fn kmain() -> ! {
         "Limine Base Revision: {}",
         BASE_REVISION.loaded_revision().unwrap_or(0)
     );
-
+    get_mp();
     if let Some(fb) = &KERNEL_CONTEXT.framebuffer {
         info!(
             "Framebuffer: {}x{} @ {}bpp",
@@ -151,5 +161,6 @@ unsafe extern "C" fn kmain() -> ! {
     get_boot_time();
 
     arch::init();
+    info!("Many maaan");
     hcf();
 }
