@@ -9,6 +9,23 @@ pub unsafe fn cli() {
 }
 
 #[inline]
+pub unsafe fn outb(port: usize, value: u8) {
+    unsafe {
+        asm!("out dx, al", in("dx") port, in("al") value, options(nostack));
+    }
+}
+
+#[inline]
+pub unsafe fn inb(port: usize) -> u8 {
+    unsafe {
+        let ret: u8;
+
+        asm!("in al, dx", in("dx") port, out("al") ret , options(nostack));
+        ret
+    }
+}
+
+#[inline]
 pub unsafe fn load_gdt(gdtr: &GdtDescriptor) {
     unsafe {
         asm!(
