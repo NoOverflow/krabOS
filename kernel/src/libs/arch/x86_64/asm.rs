@@ -1,3 +1,9 @@
+use crate::libs::arch::x86_64::cpu::CpuIdRequest;
+
+/*
+Note: I try to put most inline ASM in this file so that I can review it later
+      and understand why it's ugly.
+*/
 use super::gdt::GdtDescriptor;
 use core::arch::asm;
 
@@ -45,9 +51,39 @@ pub unsafe fn load_gdt(gdtr: &GdtDescriptor) {
             gdtr = in(reg) gdtr,
             // Ideally you would get the offsets dynamically from the Gdtr, but we convert to u64 early
             // making it impossible.
+            // TODO: Refactor
             codeseg_offset = const 0x8,
             dataseg_offset = const 0x10,
             lateout("rax") _
         );
     }
+}
+
+pub enum CpuIdRegisterOrder {
+    EAX = 0,
+    EBX = 1,
+    ECX = 2,
+    EDX = 3,
+}
+
+#[inline]
+pub unsafe fn cpuid(request: CpuIdRequest) -> [u32; 4] {
+    let mut result: [u32; 4] = [0; 4];
+
+    unsafe {
+        asm!(
+            "mov {0:r}, rbx",
+            "mov rax, 1",
+            "mov rcx, 0", // TODO: Add support for subleaves
+            "cpuid",
+            "xchg {0:r}, rbx",
+            out(reg) result[1],
+            lateout("eax") result[0],
+            lateout("ecx") result[2],
+            lateout("edx") result[3],
+            in("eax") request as u32,
+            options(nostack)
+        );
+    }
+    result
 }
