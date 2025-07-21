@@ -1,4 +1,3 @@
-use crate::KERNEL_CONTEXT;
 use crate::libs::arch::x86_64::asm::{CpuIdRegisterOrder, cpuid};
 use crate::warning;
 use bitflags::bitflags;

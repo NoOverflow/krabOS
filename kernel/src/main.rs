@@ -2,23 +2,25 @@
 #![cfg_attr(not(test), no_std)]
 #![cfg_attr(not(test), no_main)]
 #![allow(static_mut_refs)]
+#![allow(unused_unsafe)]
+#![allow(unconditional_panic)]
 
 pub mod context;
 pub mod libs;
 
 use core::arch::asm;
-use core::fmt::Write;
 
+use crate::context::{BootInfo, KernelContext};
+use crate::libs::generic::logging::logger::Logger;
+use crate::libs::generic::memory;
+use crate::libs::{arch, drivers};
 use limine::BaseRevision;
 use limine::framebuffer::Framebuffer;
 use limine::request::{
-    BootloaderInfoRequest, DateAtBootRequest, FramebufferRequest, MpRequest, RequestsEndMarker, RequestsStartMarker, StackSizeRequest
+    BootloaderInfoRequest, DateAtBootRequest, ExecutableAddressRequest, FramebufferRequest,
+    HhdmRequest, MemoryMapRequest, MpRequest, RequestsEndMarker, RequestsStartMarker,
+    StackSizeRequest,
 };
-use limine::response::BootloaderInfoResponse;
-
-use crate::context::KernelContext;
-use crate::libs::generic::logging::logger::Logger;
-use crate::libs::{arch, drivers};
 
 #[used]
 #[unsafe(link_section = ".requests")]
@@ -45,6 +47,18 @@ static DATE_AT_BOOT_REQUEST: DateAtBootRequest = DateAtBootRequest::new();
 static MP_REQUEST: MpRequest = MpRequest::new();
 
 #[used]
+#[unsafe(link_section = ".requests")]
+static KA_REQUEST: ExecutableAddressRequest = ExecutableAddressRequest::new();
+
+#[used]
+#[unsafe(link_section = ".requests")]
+static KMMAP_REQUEST: MemoryMapRequest = MemoryMapRequest::new();
+
+#[used]
+#[unsafe(link_section = ".requests")]
+static HHDM_REQUEST: HhdmRequest = HhdmRequest::new();
+
+#[used]
 #[unsafe(link_section = ".requests_start_marker")]
 static _START_MARKER: RequestsStartMarker = RequestsStartMarker::new();
 
@@ -61,6 +75,11 @@ static mut KERNEL_CONTEXT: KernelContext<'static> = KernelContext {
 #[cfg(not(test))]
 #[panic_handler]
 fn rust_panic(_info: &core::panic::PanicInfo) -> ! {
+    kpanic!(
+        "Message: {}\nLocation: {}",
+        _info.message(),
+        _info.location().unwrap_or(&core::panic::Location::caller())
+    );
     hcf();
 }
 
@@ -69,6 +88,49 @@ fn hcf() -> ! {
         unsafe {
             asm!("hlt");
         }
+    }
+}
+
+fn populate_boot_info(boot_info: &mut BootInfo) {
+    boot_info.limine_base_revision = BASE_REVISION.loaded_revision();
+    boot_info.kernel_phys_address = KA_REQUEST
+        .get_response()
+        .expect("Incomplete bootloader request for response address")
+        .physical_base();
+    boot_info.kernel_virt_address = KA_REQUEST
+        .get_response()
+        .expect("Incomplete bootloader request for response address")
+        .virtual_base();
+    boot_info.hhdm = HHDM_REQUEST
+        .get_response()
+        .expect("Incomplete bootloader response for HHDM")
+        .offset();
+    boot_info.rtc_boot = DATE_AT_BOOT_REQUEST.get_response().map(|r| r.timestamp());
+}
+
+fn print_boot_info(boot_info: &BootInfo) {
+    match BOOTLOADERINFO_REQUEST.get_response() {
+        Some(response) => {
+            info!(
+                "Bootloader info: {}, {} REV {}",
+                response.name(),
+                response.version(),
+                response.revision()
+            );
+        }
+        None => {
+            panic!("Bootloader info request failed");
+        }
+    }
+    info!(
+        "Kernel loaded at physical address {:#x} (virtual {:#x} - HHDM {:#x})",
+        boot_info.kernel_phys_address, boot_info.kernel_virt_address, boot_info.hhdm
+    );
+    match boot_info.rtc_boot {
+        Some(rtc) => {
+            info!("Booted at {:#?}", rtc);
+        }
+        None => warning!("No RTC found, set date and time manually !"),
     }
 }
 
@@ -84,52 +146,13 @@ fn get_limine_framebuffer(framebuffer: &mut Option<Framebuffer>) {
     }
 }
 
-fn get_limine_bootloader_info(bootloader_info_response: &mut Option<&BootloaderInfoResponse>) {
-    match BOOTLOADERINFO_REQUEST.get_response() {
-        Some(response) => {
-            info!(
-                "Bootloader info: {}, {} REV {}",
-                response.name(),
-                response.version(),
-                response.revision()
-            );
-            *bootloader_info_response = Some(response)
-        }
-        None => {
-            panic!("Bootloader info request failed");
-        }
-    }
-}
-
-fn get_boot_time() {
-    match DATE_AT_BOOT_REQUEST.get_response() {
-        Some(response) => {
-            info!("Booted at {:#?}", response.timestamp());
-        }
-        None => {
-            panic!("DateAtBoot request failed.")
-        }
-    }
-}
-
-fn get_mp() {
-    if let Some(mp_response) = MP_REQUEST.get_response() {
-        info!("Physical processors count: {:#?}", mp_response.cpus().len());
-    } else {
-        panic!("MP request failed");
-    }
-}
-
 #[unsafe(no_mangle)]
 unsafe extern "C" fn kmain() -> ! {
     assert!(BASE_REVISION.is_supported());
     let mut fb_request: Option<Framebuffer<'_>> = None;
+    let mut boot_info: BootInfo = BootInfo::default();
 
     get_limine_framebuffer(&mut fb_request);
-
-    if fb_request.is_none() {
-        hcf();
-    }
 
     unsafe {
         // Fuck you for coding this, straight up.
@@ -141,25 +164,8 @@ unsafe extern "C" fn kmain() -> ! {
     };
 
     info!("Kernel started successully !");
-    info!(
-        "Limine Base Revision: {}",
-        BASE_REVISION.loaded_revision().unwrap_or(0)
-    );
-    get_mp();
-    if let Some(fb) = &KERNEL_CONTEXT.framebuffer {
-        info!(
-            "Framebuffer: {}x{} @ {}bpp",
-            fb.width(),
-            fb.height(),
-            fb.bpp()
-        );
-    }
-
-    let mut bootloader_info_response: Option<&BootloaderInfoResponse> = None;
-
-    get_limine_bootloader_info(&mut bootloader_info_response);
-    get_boot_time();
-
+    populate_boot_info(&mut boot_info);
+    print_boot_info(&boot_info);
     arch::init();
     info!("Many maaan");
     hcf();

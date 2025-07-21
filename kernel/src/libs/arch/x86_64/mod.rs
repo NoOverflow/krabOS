@@ -1,4 +1,5 @@
-use crate::KERNEL_CONTEXT;
+use seq_macro::seq;
+
 use crate::libs::arch::x86_64::cpu::CpuInfo;
 use crate::{
     info,

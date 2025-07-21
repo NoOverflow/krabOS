@@ -22,6 +22,7 @@ impl<'a> core::fmt::Write for Logger<'a> {
 macro_rules! _log {
     ($prefix:expr, $($arg:tt)*) => ({
         use core::fmt::Write;
+        use crate::KERNEL_CONTEXT;
 
         unsafe {
             match &mut KERNEL_CONTEXT.logger {
@@ -38,20 +39,20 @@ macro_rules! _log {
 #[macro_export]
 macro_rules! info {
     ($($args:tt)*) => {
-        $crate::_log!("[Info] ", $($args)*);
+        $crate::_log!("[Info] ", $($args)*)
     };
 }
 
 #[macro_export]
 macro_rules! warning {
     ($($args:tt)*) => {
-        $crate::_log!("[Warning] ", $($args)*);
+        $crate::_log!("[Warning] ", $($args)*)
     };
 }
 
 #[macro_export]
 macro_rules! kpanic {
     ($($args:tt)*) => {
-        $crate::_log!("[Panic !] ", $($args)*);
+        $crate::_log!("[Panic !] ", $($args)*)
     };
 }
