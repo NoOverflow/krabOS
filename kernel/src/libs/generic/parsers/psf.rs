@@ -1,5 +1,3 @@
-// static FONT: &[u8]
-
 #[derive(PartialEq, Eq, Debug)]
 pub enum PsfVersion {
     Psf1,

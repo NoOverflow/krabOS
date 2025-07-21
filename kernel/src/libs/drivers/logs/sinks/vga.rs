@@ -101,9 +101,9 @@ impl<'a> Sink for Vga<'a> {
                     & (1 << 7 - (x % 8))
                     != 0
                 {
-                    0xFFFFFFFF // White pixel
+                    0xFFFFFFFF
                 } else {
-                    0x00000000 // Transparent pixel
+                    0x00000000
                 };
 
                 let absolute_x: u64 =

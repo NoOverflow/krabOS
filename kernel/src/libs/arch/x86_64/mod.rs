@@ -9,7 +9,6 @@ use crate::{
     },
 };
 use core::arch::asm;
-use core::fmt::Write;
 
 pub mod asm;
 pub mod cpu;
