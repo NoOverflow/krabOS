@@ -79,8 +79,10 @@ pub fn load(idtr: &IdtDescriptor) {
 #[cfg(test)]
 mod tests {
     use crate::libs::arch::x86_64::{
-        gdt::{SegmentSelector, CPL_RING_3},
-        idt::{IdtDescriptor, IdtGateDescriptor, IdtGateDescriptorProperties, IdtGateType},
+        gdt::{CPL_RING_3, SegmentSelector},
+        interrupts::idt::{
+            IdtDescriptor, IdtGateDescriptor, IdtGateDescriptorProperties, IdtGateType,
+        },
     };
 
     #[test]

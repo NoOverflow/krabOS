@@ -2,7 +2,7 @@ cfg_select! {
     target_arch = "x86_64" => {
         pub mod x86_64;
 
-        mod internal {
+        pub mod internal {
             pub use super::x86_64::*;
         }
     }

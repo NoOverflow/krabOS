@@ -1,11 +1,17 @@
+use crate::libs::{
+    arch::x86_64::interrupts::ctx::Context, generic::interrupts::handlers::handle_interrupt,
+};
 use core::arch::naked_asm;
-use crate::libs::arch::x86_64::asm::outb;
+use seq_macro::seq;
 
 #[unsafe(no_mangle)]
-pub extern "C" fn generic_handler() {
-    unsafe {
+pub extern "C" fn generic_handler(_context: *mut Context) {
+    let mut context = unsafe { *_context };
+
+    handle_interrupt(&mut context);
+    /*unsafe {
         outb(0x20, 0x20);
-    }
+    }*/
 }
 
 // Note: There is no predefined macro to push all 15 general purpose registers (excluding RSP)
@@ -57,8 +63,26 @@ macro_rules! pop_gpregs {
     };
 }
 
-#[unsafe(naked)]
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn isr_handler() {
-    naked_asm!(push_gpregs!(), "cld", "call {}", pop_gpregs!(), "iretq", sym generic_handler);
-}
+seq!(N in 0..=256 {
+    #[unsafe(naked)]
+    #[unsafe(no_mangle)]
+    pub unsafe extern "C" fn isr_handler~N() {
+        naked_asm!(
+            ".if ({i} == 8 || ({i} >= 10 && {i} <= 14) || {i} == 17 || {i} == 21 || {i} == 29 || {i} == 30)",
+            ".else",
+                "push 0",
+            ".endif",
+            push_gpregs!(),
+            "push {i}",
+            "cld",
+            "mov rdi, rsp",
+            "call {generic_handler}",
+            "add rsp, 8", // Pop ISR Index
+            pop_gpregs!(),
+            "add rsp, 8", // Pop error code
+            "iretq",
+            i = const N,
+            generic_handler = sym generic_handler
+        );
+    }
+});

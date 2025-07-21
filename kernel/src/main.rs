@@ -167,6 +167,11 @@ unsafe extern "C" fn kmain() -> ! {
     populate_boot_info(&mut boot_info);
     print_boot_info(&boot_info);
     arch::init();
-    info!("Many maaan");
-    hcf();
+    memory::init(KMMAP_REQUEST.get_response());
+
+    unsafe {
+        asm!("mov rax, 0", "div rax");
+        *(&mut (0x00100000 as i64) as *mut i64) = 1234;
+    };
+    panic!("Simulated event.");
 }

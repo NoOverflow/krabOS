@@ -5,8 +5,7 @@ use crate::{
     info,
     libs::arch::x86_64::{
         gdt::{CPL_RING_0, SegmentSelector},
-        idt::{Idt, IdtDescriptor, IdtGateDescriptor, IdtGateDescriptorProperties},
-        isr::isr_handler,
+        interrupts::idt::{Idt, IdtDescriptor, IdtGateDescriptor, IdtGateDescriptorProperties},
     },
 };
 use core::arch::asm;
@@ -14,8 +13,11 @@ use core::arch::asm;
 pub mod asm;
 pub mod cpu;
 pub mod gdt;
-pub mod idt;
-pub mod isr;
+pub mod interrupts {
+    pub mod ctx;
+    pub mod idt;
+    pub mod isr;
+}
 
 struct CpuContext {
     gdt: [u64; 5],
@@ -32,26 +34,32 @@ static mut CPU_CONTEXT: CpuContext = CpuContext {
 
 #[allow(static_mut_refs)]
 pub unsafe fn init() {
+    let mut idtr: [IdtGateDescriptor; 256] = [Default::default(); 256];
+
     gdt::load(unsafe { &mut CPU_CONTEXT.gdt });
 
-    let idtr_default: IdtGateDescriptor = IdtGateDescriptor::new(
-        isr_handler as _,
-        SegmentSelector {
-            local_descriptor_table: false,
-            index: 1, // This will cause issues lmao
-            requested_privilege: CPL_RING_0,
-        },
-        IdtGateDescriptorProperties {
-            gate_type: idt::IdtGateType::Interrupt,
-            privilege_level: CPL_RING_0,
-        },
-        0,
-    );
+    seq!(N in 0..256 {
+        let igtgd: IdtGateDescriptor = IdtGateDescriptor::new(
+            crate::arch::internal::interrupts::isr::isr_handler~N as _,
+            SegmentSelector {
+                local_descriptor_table: false,
+                index: 1, // This will cause issues lmao
+                requested_privilege: CPL_RING_0,
+            },
+            IdtGateDescriptorProperties {
+                gate_type: interrupts::idt::IdtGateType::Interrupt,
+                privilege_level: CPL_RING_0,
+            },
+            0,
+        );
+
+        idtr[N] = igtgd;
+    });
 
     unsafe {
         CPU_CONTEXT.idtr = Some(IdtDescriptor {
             size: (size_of::<IdtGateDescriptor>() * 256) as u16 - 1,
-            idt_offset: (&[idtr_default; 256]) as *const Idt,
+            idt_offset: (&idtr) as *const Idt,
         });
         CPU_CONTEXT.info = Some(CpuInfo::new());
         CPU_CONTEXT
@@ -74,7 +82,7 @@ pub unsafe fn init() {
         // Unmask PIC
         asm!("mov al, 0x1", "out 0x21, al", "out 0xa1, al",);
         info!("PIC unmasked");
-        idt::load(CPU_CONTEXT.idtr.as_ref().unwrap());
+        interrupts::idt::load(CPU_CONTEXT.idtr.as_ref().unwrap());
         asm!("sti");
     }
 }
