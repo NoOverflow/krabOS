@@ -78,6 +78,7 @@ fn rust_panic(_info: &core::panic::PanicInfo) -> ! {
     kpanic!(
         "Message: {}\nLocation: {}",
         _info.message(),
+        // TODO: Write a debug symbol resolver to get the actual location with demangled function name
         _info.location().unwrap_or(&core::panic::Location::caller())
     );
     hcf();
@@ -169,9 +170,10 @@ unsafe extern "C" fn kmain() -> ! {
     arch::init();
     memory::init(KMMAP_REQUEST.get_response());
 
+    let ptr = 0xdeadbeaf as *mut u8;
     unsafe {
-        asm!("mov rax, 0", "div rax");
-        *(&mut (0x00100000 as i64) as *mut i64) = 1234;
-    };
+        *ptr = 42;
+    }
+
     panic!("Simulated event.");
 }

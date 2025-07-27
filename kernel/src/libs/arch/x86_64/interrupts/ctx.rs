@@ -26,9 +26,9 @@ pub struct Context {
     pub isr_index: u64,
     pub registers: Registers,
     pub error_code: u64,
-    pub eip: u64,
+    pub rip: u64,
     pub cs: u64,
-    pub eflags: u64,
+    pub rflags: u64,
 }
 
 impl Debug for Registers {
@@ -56,8 +56,8 @@ impl Debug for Context {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         writeln!(
             f,
-            "EIP: {:0>16x}  CS:  {:0>16x}  EFLAGS: {:0>16x}",
-            self.eip, self.cs, self.eflags
+            "RIP: {:0>16x}  CS:  {:0>16x}  EFLAGS: {:0>16x}",
+            self.rip, self.cs, self.rflags
         )?;
         Ok(())
     }

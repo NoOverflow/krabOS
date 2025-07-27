@@ -1,5 +1,6 @@
 use crate::libs::{
-    arch::x86_64::interrupts::ctx::Context, generic::interrupts::handlers::handle_interrupt,
+    arch::x86_64::{interrupts::ctx::Context, registers},
+    generic::interrupts::handlers::handle_interrupt,
 };
 use core::arch::naked_asm;
 use seq_macro::seq;
@@ -8,10 +9,32 @@ use seq_macro::seq;
 pub extern "C" fn generic_handler(_context: *mut Context) {
     let mut context = unsafe { *_context };
 
-    handle_interrupt(&mut context);
-    /*unsafe {
-        outb(0x20, 0x20);
-    }*/
+    if context.isr_index == 0x1 {
+        return;
+    }
+    match context.isr_index {
+        0xE => {
+            panic!(
+                "Unhandled page fault occured while reading address 0x{:02x}\n\n{:?}{:?}",
+                registers::cr2(),
+                context,
+                context.registers
+            );
+        }
+        _ => panic!(
+            "An unhandled CPU interrupt occured, {} (error code: {:x})\n\n{:?}{:?}",
+            match context.isr_index {
+                0x0 => "division by zero",
+                0x1 => "debug instruction",
+                0x2 => "NMI interrupt",
+                0x3 => "breakpoint",
+                _ => "unknown error",
+            },
+            context.error_code,
+            context,
+            context.registers
+        ),
+    }
 }
 
 // Note: There is no predefined macro to push all 15 general purpose registers (excluding RSP)

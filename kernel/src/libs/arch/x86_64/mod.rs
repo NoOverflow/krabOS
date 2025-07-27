@@ -13,6 +13,7 @@ use core::arch::asm;
 pub mod asm;
 pub mod cpu;
 pub mod gdt;
+pub mod registers;
 pub mod interrupts {
     pub mod ctx;
     pub mod idt;

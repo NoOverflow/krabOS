@@ -5,21 +5,5 @@ use crate::libs::arch;
           if we ever support other archs.
 */
 pub fn handle_interrupt(context: &mut arch::internal::interrupts::ctx::Context) {
-    if context.isr_index == 0x1 {
-        return;
-    }
-    panic!(
-        "An unhandled CPU interrupt occured, {} (error code: {:x})\n\n{:?}{:?}",
-        match context.isr_index {
-            0x0 => "division by zero",
-            0x1 => "debug instruction",
-            0x2 => "NMI interrupt",
-            0x3 => "breakpoint",
-            0xE => "page fault",
-            _ => "unknown error",
-        },
-        context.error_code,
-        context,
-        context.registers
-    );
+    return;
 }
