@@ -1,13 +1,10 @@
-use crate::libs::{
-    arch::x86_64::{interrupts::ctx::Context, registers},
-    generic::interrupts::handlers::handle_interrupt,
-};
+use crate::libs::arch::x86_64::{interrupts::ctx::Context, registers};
 use core::arch::naked_asm;
 use seq_macro::seq;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn generic_handler(_context: *mut Context) {
-    let mut context = unsafe { *_context };
+    let context = unsafe { *_context };
 
     if context.isr_index == 0x1 {
         return;

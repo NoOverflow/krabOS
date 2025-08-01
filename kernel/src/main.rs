@@ -16,11 +16,16 @@ use crate::libs::generic::memory;
 use crate::libs::{arch, drivers};
 use limine::BaseRevision;
 use limine::framebuffer::Framebuffer;
+use limine::paging::Mode;
 use limine::request::{
     BootloaderInfoRequest, DateAtBootRequest, ExecutableAddressRequest, FramebufferRequest,
-    HhdmRequest, MemoryMapRequest, MpRequest, RequestsEndMarker, RequestsStartMarker,
-    StackSizeRequest,
+    HhdmRequest, MemoryMapRequest, MpRequest, PagingModeRequest, RequestsEndMarker,
+    RequestsStartMarker, StackSizeRequest,
 };
+
+#[used]
+#[unsafe(link_section = ".requests_start_marker")]
+static _START_MARKER: RequestsStartMarker = RequestsStartMarker::new();
 
 #[used]
 #[unsafe(link_section = ".requests")]
@@ -59,8 +64,8 @@ static KMMAP_REQUEST: MemoryMapRequest = MemoryMapRequest::new();
 static HHDM_REQUEST: HhdmRequest = HhdmRequest::new();
 
 #[used]
-#[unsafe(link_section = ".requests_start_marker")]
-static _START_MARKER: RequestsStartMarker = RequestsStartMarker::new();
+#[unsafe(link_section = ".requests")]
+static PLEVEL_REQUEST: PagingModeRequest = PagingModeRequest::new().with_max_mode(Mode::FIVE_LEVEL);
 
 #[used]
 #[unsafe(link_section = ".requests_end_marker")]
@@ -70,6 +75,7 @@ static mut KERNEL_CONTEXT: KernelContext<'static> = KernelContext {
     framebuffer: None,
     vga: None,
     logger: None,
+    boot_info: None,
 };
 
 #[cfg(not(test))]
@@ -107,6 +113,13 @@ fn populate_boot_info(boot_info: &mut BootInfo) {
         .expect("Incomplete bootloader response for HHDM")
         .offset();
     boot_info.rtc_boot = DATE_AT_BOOT_REQUEST.get_response().map(|r| r.timestamp());
+    boot_info.paging_level = Some(
+        PLEVEL_REQUEST
+            .get_response()
+            .map(|r| r.mode())
+            .unwrap_or(Mode::FOUR_LEVEL),
+    );
+    boot_info.memory_map = KMMAP_REQUEST.get_response();
 }
 
 fn print_boot_info(boot_info: &BootInfo) {
@@ -151,26 +164,24 @@ fn get_limine_framebuffer(framebuffer: &mut Option<Framebuffer>) {
 unsafe extern "C" fn kmain() -> ! {
     assert!(BASE_REVISION.is_supported());
     let mut fb_request: Option<Framebuffer<'_>> = None;
-    let mut boot_info: BootInfo = BootInfo::default();
 
     get_limine_framebuffer(&mut fb_request);
-
     unsafe {
-        // Fuck you for coding this, straight up.
+        KERNEL_CONTEXT.boot_info = Some(BootInfo::default());
         KERNEL_CONTEXT.framebuffer = Some(fb_request.unwrap());
         KERNEL_CONTEXT.vga = Some(drivers::logs::sinks::vga::Vga::new(
             KERNEL_CONTEXT.framebuffer.as_ref().unwrap(),
         ));
         KERNEL_CONTEXT.logger = Some(Logger::new(KERNEL_CONTEXT.vga.as_mut().unwrap()));
+        populate_boot_info(&mut KERNEL_CONTEXT.boot_info.as_mut().unwrap());
+        print_boot_info(&KERNEL_CONTEXT.boot_info.as_ref().unwrap());
     };
 
     info!("Kernel started successully !");
-    populate_boot_info(&mut boot_info);
-    print_boot_info(&boot_info);
     arch::init();
     memory::init(KMMAP_REQUEST.get_response());
 
-    let ptr = 0xdeadbeaf as *mut u8;
+    let ptr = 0xdeadbeef as *mut u8;
     unsafe {
         *ptr = 42;
     }
